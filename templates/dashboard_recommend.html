@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Get Recommendation — Vantage{% endblock %}
+{% block content %}
+
+<div class="page-hero">
+  <h2>Get a Recommendation</h2>
+  {% if result %}
+  <form method="POST" action="{{ url_for('dashboard_recommend') }}" style="display:inline;">
+    <input type="hidden" name="form_action" value="new">
+    <button type="submit" class="btn btn-ghost btn-sm">Start a new recommendation</button>
+  </form>
+  {% endif %}
+</div>
+
+<form method="POST" action="{{ url_for('dashboard_recommend') }}" class="amount-card amount-card-centered" id="amount-form">
+  <label for="amount-input">Amount available to invest (₹)</label>
+  <input type="number" id="amount-input" name="amount" min="0" placeholder="e.g. 50000" value="{{ submitted_amount }}" required>
+  <div class="quick-chips">
+    <button type="button" class="chip" data-amount="10000">₹10k</button>
+    <button type="button" class="chip" data-amount="25000">₹25k</button>
+    <button type="button" class="chip" data-amount="50000">₹50k</button>
+    <button type="button" class="chip" data-amount="100000">₹1L</button>
+    <button type="button" class="chip" data-amount="500000">₹5L</button>
+  </div>
+  <button type="submit" class="btn btn-primary btn-block">Get recommendation</button>
+</form>
+
+{% if result %}
+<div class="results" id="results-anchor">
+
+  {% if result.safety_warnings %}
+  <div class="warnings-block">
+    <strong>Worth considering first:</strong>
+    <ul>
+      {% for w in result.safety_warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if result.zero_qualified %}
+  <div class="zero-block">
+    <p>No stocks currently meet the criteria for your profile — even after widening the search. Sample reasons:</p>
+    {% for r in result.rejection_sample %}
+      <div class="rejection-row">{{ r.symbol }}: {{ r.reasons|join(", ") }}</div>
+    {% endfor %}
+    <p style="margin-top:10px;">Try relaxing a sector exclusion in your Profile, or a different amount.</p>
+  </div>
+
+  {% else %}
+
+  <!-- ---- agent framing: this is a set of options, not one forced answer ---- -->
+  <div class="agent-intro">
+    <div class="agent-intro-icon">✦</div>
+    <div>
+      <span class="agent-intro-badge {{ 'llm' if result.comparison_is_llm else 'template' }}">
+        {{ 'Reasoned live by Gemini' if result.comparison_is_llm else 'Agent reasoning' }}
+      </span>
+      <p class="agent-intro-text">{{ result.comparison }}</p>
+    </div>
+  </div>
+
+  {% if result.screen_relaxed %}
+  <div class="relax-notice">
+    Not enough stocks qualified under your {{ result.risk_tier }} profile's normal criteria, so the
+    agent widened its search up to <strong>{{ result.screen_tier_used }}</strong>-tier thresholds to give you
+    a real set of options instead of a near-empty list. Every pick below still passed a full fundamentals screen —
+    just a slightly wider one.
+  </div>
+  {% endif %}
+
+  <!-- ---- strategy picker: suggest, don't force ---- -->
+  <div class="strategy-toggle-row">
+    {% for s in result.strategies %}
+    <button type="button" class="strategy-tab {{ 'active' if loop.first }}" data-strategy-panel="panel-{{ s.id }}">
+      <div class="strategy-tab-label">
+        {{ s.label }}
+        {% if s.recommended %}<span class="strategy-tab-star">Suggested</span>{% endif %}
+        {% if s.is_tracked %}<span class="strategy-tab-tracked">✓ Tracked</span>{% endif %}
+      </div>
+      <div class="strategy-tab-pct">{{ s.equity_pct }}% equity · {{ s.picks|length }} stocks</div>
+    </button>
+    {% endfor %}
+  </div>
+
+  {% for s in result.strategies %}
+  <div class="strategy-panel {{ 'active' if loop.first }}" id="panel-{{ s.id }}">
+    <p class="strategy-tagline">{{ s.tagline }}</p>
+
+    {% if not s.picks %}
+      <div class="zero-block"><p>{{ s.message or "No picks were generated for this amount under this strategy." }}</p></div>
+    {% else %}
+
+    <!-- ---- money map: unambiguous, plain-language breakdown ---- -->
+    <div class="money-map">
+      <div class="money-map-row">
+        <span class="money-map-dot" style="background: var(--accent);"></span>
+        <span class="money-map-text">
+          <strong>₹{{ "{:,.0f}".format(s.equity_amount) }}</strong> goes into
+          <strong>{{ s.picks|length }} hand-picked stocks</strong> below, split between them.
+        </span>
+      </div>
+      <div class="money-map-row">
+        <span class="money-map-dot" style="background: var(--border);"></span>
+        <span class="money-map-text">
+          <strong>₹{{ "{:,.0f}".format(s.remainder_amount) }}</strong> is <strong>not invested by this app at all</strong>
+          — suggested for diversified funds instead, not because you're short on savings.
+          <span class="tip" tabindex="0" data-tip="This app only recommends individual stocks. Putting 100% of any amount into hand-picked single stocks is riskier than spreading some into a diversified index/mutual fund — that's the only reason this portion is held back, regardless of how much you already have saved. Try the 'Focused' strategy if you want more of your amount working in fewer stocks."></span>
+        </span>
+      </div>
+      {% if s.cushioned %}
+      <div class="money-map-row money-map-cushioned">
+        <span class="money-map-dot" style="background: var(--green);"></span>
+        <span class="money-map-text">
+          Because your emergency fund is already solid and you carry no high-interest debt, this uses
+          <strong>more of your risk profile's ceiling</strong> than your time horizon alone would suggest.
+        </span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if s.message %}
+    <div class="warnings-block">{{ s.message }}</div>
+    {% endif %}
+
+    <!-- ---- summary strip ---- -->
+    <div class="summary-strip">
+      <div class="summary-item">
+        <span class="summary-value">₹{{ "{:,.0f}".format(s.total_amount) }}</span>
+        <span class="summary-label">Amount considered</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-value">{{ s.picks|length }}</span>
+        <span class="summary-label">Stocks picked</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-value">{{ s.largest_pick.pct_of_equity }}%</span>
+        <span class="summary-label">Largest holding<span class="tip" tabindex="0" data-tip="As a % of the equity amount only (the stock portion), not your full amount."></span></span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-value">{{ s.sector_breakdown|length }}</span>
+        <span class="summary-label">Sectors represented</span>
+      </div>
+    </div>
+
+    <div class="results-grid">
+      <div class="allocation-card">
+        <h3>Allocation split</h3>
+        <div class="donut-wrap" style="background: conic-gradient({{ s.donut_gradient }});">
+          <div class="donut-center">
+            <span class="donut-pct">{{ s.equity_pct }}%</span>
+            <span class="donut-caption">to direct equity</span>
+          </div>
+        </div>
+        <div class="donut-legend">
+          <span><i class="swatch" style="background: var(--accent);"></i>Direct equity<span class="tip" tabindex="0" data-tip="The portion split across the hand-picked stocks shown below."></span></span>
+          <span><i class="swatch" style="background: var(--border);"></i>Suggested elsewhere<span class="tip" tabindex="0" data-tip="Not invested by this app — a diversification choice, not a shortfall in your savings."></span></span>
+        </div>
+        <p class="equity-summary">₹{{ "{:,.0f}".format(s.equity_amount) }} suggested toward direct equity out of ₹{{ "{:,.0f}".format(s.total_amount) }} available.</p>
+        <p class="equity-explain">
+          {{ s.equity_pct_used }}% used, out of a {{ s.equity_ceiling_pct }}% ceiling for this strategy on your
+          {{ result.risk_tier }} profile (base ceiling {{ s.base_ceiling_pct }}%) — adjusted for your {{ result.time_horizon_years }}-year horizon
+          {{ "and your existing financial cushion" if s.cushioned else "" }}. Per-stock cap for this strategy: {{ s.per_stock_cap_pct }}%.
+        </p>
+
+        <h3 class="sector-heading">Sector breakdown</h3>
+        <div class="sector-bars">
+          {% for sec in s.sector_breakdown %}
+          <div class="sector-row">
+            <span class="sector-row-label"><i class="swatch" style="background: {{ sec.color }};"></i>{{ sec.sector }}</span>
+            <span class="sector-row-pct">{{ sec.pct }}%</span>
+          </div>
+          <div class="sector-bar-track"><div class="sector-bar-fill" style="width: {{ sec.pct }}%; background: {{ sec.color }};"></div></div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="picks-card">
+        <h3>Suggested picks <span class="tip" tabindex="0" data-tip="Every stock here already passed the fundamentals screen for your risk tier — click any name to see it in the full universe with its price history."></span></h3>
+        <div class="picks-list">
+          {% for p in s.picks %}
+          <div class="pick-row" style="border-left: 4px solid {{ p.color }};">
+            <div class="pick-top">
+              <a class="pick-name-link" href="{{ url_for('dashboard_stock_detail', symbol=p.symbol) }}">
+                <span class="pick-name">
+                  {{ p.company_name }}
+                  <span class="pick-sector" style="background: {{ p.color }}22; color: {{ p.color }};">{{ p.sector }}</span>
+                </span>
+              </a>
+              <span class="pick-amount">₹{{ "{:,.0f}".format(p.amount) }}</span>
+            </div>
+            <p class="pick-reason">{{ p.reasoning }}</p>
+            <div class="pick-scores">
+              <span class="pick-score-chip">ROE {{ p.score_roe }}%</span>
+              <span class="pick-score-chip">Growth {{ p.score_growth }}%</span>
+              <span class="pick-score-chip">D/E {{ p.score_debt_to_equity }}</span>
+              <span class="pick-score-chip">P/E {{ p.score_pe }}</span>
+            </div>
+            {% if p.price_at_rec %}
+            <p class="pick-listed-price">Listed at {{ "$" if p.currency == "USD" else "₹" }}{{ "%.2f"|format(p.price_at_rec) }} ({{ p.symbol }})</p>
+            {% endif %}
+            <div class="pick-alloc-bar"><div class="pick-alloc-fill" style="width: {{ p.pct_of_equity }}%; background: {{ p.color }};"></div></div>
+            <span class="pick-alloc-caption">{{ p.pct_of_equity }}% of the ₹{{ "{:,.0f}".format(s.equity_amount) }} equity amount</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="strategy-track-row">
+      {% if s.is_tracked %}
+        <span class="track-tracked-label">✓ You're tracking this strategy</span>
+      {% else %}
+        <form method="POST" action="{{ url_for('dashboard_recommend_track') }}">
+          <input type="hidden" name="strategy_id" value="{{ s.id }}">
+          <input type="hidden" name="amount" value="{{ result.amount_available }}">
+          <button type="submit" class="btn btn-primary">Track this strategy</button>
+        </form>
+      {% endif %}
+      <a href="{{ url_for('dashboard_tracked') }}" class="btn btn-ghost btn-sm">View Tracked</a>
+    </div>
+
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% endif %}
+
+  <p class="data-as-of">Data as of: {{ result.data_as_of }}</p>
+  {% if result.tax_note %}<p class="disclaimer-inline">Tax note: {{ result.tax_note }}</p>{% endif %}
+  <p class="disclaimer-inline">{{ result.disclaimer or "Educational output only, not personalized financial advice — please do your own research or consult a registered investment adviser before acting." }}</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,8 @@
+flask>=3.0.0
+yfinance>=0.2.40
+gunicorn>=22.0.0    # production WSGI server used by the Docker image (see Dockerfile)
+google-genai>=0.3.0  # optional — only used if GEMINI_API_KEY is set, for the
+                     # agent's cross-strategy comparison text (see llm_reasoning.py).
+                     # The app runs fine without it; comparisons fall back to
+                     # clear templated text.
+python-dotenv>=1.0.0

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Stocks — Vantage{% endblock %}
+{% block content %}
+
+<div class="page-hero"><h2>Stock Universe</h2></div>
+
+<form method="GET" action="{{ url_for('dashboard_stocks') }}" class="stocks-filter-bar">
+  <div class="field" style="min-width:220px;">
+    <label for="q">Search</label>
+    <input type="text" id="q" name="q" placeholder="Company or symbol" value="{{ filters.q }}">
+  </div>
+
+  <div class="field">
+    <label for="sector">Sector</label>
+    <select id="sector" name="sector">
+      <option value="">All sectors</option>
+      {% for sec in sectors %}
+      <option value="{{ sec }}" {{ "selected" if sec in filters.sectors }}>{{ sec }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="cap_tier">Market cap</label>
+    <select id="cap_tier" name="cap_tier">
+      <option value="">All sizes</option>
+      {% for tier in cap_tiers %}
+      <option value="{{ tier }}" {{ "selected" if tier in filters.cap_tiers }}>{{ tier|capitalize }} cap</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="region">Geography</label>
+    <select id="region" name="region">
+      <option value="">All geographies</option>
+      {% for reg in regions %}
+      <option value="{{ reg }}" {{ "selected" if reg in filters.regions }}>{{ reg }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="sort">Sort by</label>
+    <select id="sort" name="sort">
+      <option value="name" {{ "selected" if filters.sort == "name" }}>Name (A–Z)</option>
+      <option value="change" {{ "selected" if filters.sort == "change" }}>Today's change</option>
+      <option value="price" {{ "selected" if filters.sort == "price" }}>Price (high–low)</option>
+      <option value="roe" {{ "selected" if filters.sort == "roe" }}>ROE (high–low)</option>
+      <option value="market_cap" {{ "selected" if filters.sort == "market_cap" }}>Market cap (high–low)</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Filter</button>
+  {% if filters.sectors or filters.cap_tiers or filters.regions or filters.q or filters.sort != "name" %}
+  <a href="{{ url_for('dashboard_stocks') }}" class="btn btn-ghost">Clear</a>
+  {% endif %}
+</form>
+
+<p class="stocks-count">{{ stocks|length }} compan{{ "y" if stocks|length == 1 else "ies" }} in the tracked universe</p>
+
+<table class="stocks-table">
+  <thead>
+    <tr>
+      <th>Company</th>
+      <th>Sector</th>
+      <th>Geography</th>
+      <th>Cap</th>
+      <th>Price</th>
+      <th>Today</th>
+      <th>ROE</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in stocks %}
+    <tr class="stock-row" data-href="{{ url_for('dashboard_stock_detail', symbol=s.symbol) }}?ref={{ filters_qs|urlencode }}">
+      <td>
+        <a class="stock-row-link" href="{{ url_for('dashboard_stock_detail', symbol=s.symbol) }}?ref={{ filters_qs|urlencode }}">
+          <div class="stock-name-cell">{{ s.company_name }}</div>
+          <div class="stock-symbol-cell">{{ s.symbol_short }}</div>
+        </a>
+      </td>
+      <td><span class="sector-tag" style="background: var(--accent-soft); color: var(--accent);">{{ s.sector }}</span></td>
+      <td>{{ s.region or "—" }}</td>
+      <td style="text-transform:capitalize;">{{ s.market_cap_tier or "—" }}</td>
+      <td>{{ "$" if s.currency == "USD" else "₹" }}{{ "%.2f"|format(s.price or 0) }}</td>
+      <td class="{{ 'stat-up' if s.change_pct >= 0 else 'stat-down' }}">{{ "+" if s.change_pct >= 0 else "" }}{{ s.change_pct }}%</td>
+      <td>{{ s.roe or "—" }}{{ "%" if s.roe is not none }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="padding:26px; text-align:center; color: var(--text-faint);">No stocks match these filters.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

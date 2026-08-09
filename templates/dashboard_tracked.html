@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Tracked — Vantage{% endblock %}
+{% block content %}
+
+<div class="page-hero"><h2>Tracked Recommendations</h2></div>
+
+{% if not recommendations %}
+<p class="empty-msg">No recommendations yet — <a href="{{ url_for('dashboard_recommend') }}">generate one</a> to see it here.</p>
+{% else %}
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Total invested (confirmed)</span>
+    <span class="stat-value stat-up">₹{{ "{:,.0f}".format(summary.total_invested) }}</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Total recommended</span>
+    <span class="stat-value">₹{{ "{:,.0f}".format(summary.total_recommended) }}</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Recommendations made</span>
+    <span class="stat-value">{{ summary.count }} <span style="font-size:13px; color:var(--text-faint); font-weight:600;">({{ summary.confirmed_count }} invested)</span></span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Sectors touched</span>
+    <span class="stat-value">{{ summary.sector_count }}</span>
+  </div>
+</div>
+
+<div class="tracked-list">
+  {% for rec in recommendations %}
+  <details class="tracked-card">
+    <summary class="tracked-head">
+      <div class="tracked-head-left">
+        <span class="tracked-date">
+          {{ rec.created_at[:16].replace("T", " ") }}
+          {% if rec.is_confirmed %}<span class="invested-badge">&#10003; Invested</span>{% endif %}
+        </span>
+        <span class="tracked-amount">
+          ₹{{ "{:,.0f}".format(rec.total_amount) }} across
+          {{ rec.recommended_picks|length }} pick{{ "s" if rec.recommended_picks|length != 1 else "" }}
+        </span>
+        <span class="tracked-meta">Risk tier at the time: {{ rec.input_snapshot.risk_tier or "—" }}</span>
+      </div>
+      <span class="tracked-chevron">&rsaquo;</span>
+    </summary>
+    <div class="tracked-detail">
+      {% if rec.recommended_picks %}
+        {% for p in rec.recommended_picks %}
+        <div class="tracked-pick-row">
+          <span>{{ p.company_name }} ({{ p.symbol }}) — {{ p.sector }}</span>
+          <span>₹{{ "{:,.0f}".format(p.amount) }}</span>
+        </div>
+        <div class="sector-bar-track"><div class="sector-bar-fill" style="width: {{ (p.amount / rec.total_amount * 100) if rec.total_amount else 0 }}%; background: var(--accent);"></div></div>
+        {% endfor %}
+      {% else %}
+        <p style="color: var(--text-dim); font-size: 13px;">No picks were generated for this recommendation.</p>
+      {% endif %}
+
+      {% if not rec.is_confirmed and rec.recommended_picks %}
+      <div class="confirm-invest-row" data-confirm-row>
+        <span class="confirm-invest-label">
+          Did you actually invest this?
+          <span class="tip" tabindex="0" data-tip="This is a recommendation only, not a record of a real trade. Marking 'Invested' adds it to your Total invested figure above."></span>
+        </span>
+        <div class="confirm-invest-btns">
+          <form method="POST" action="{{ url_for('dashboard_confirm_investment', rec_id=rec.rec_id) }}">
+            <button type="submit" class="btn-pill btn-pill-yes">&#10003; Invested</button>
+          </form>
+          <button type="button" class="btn-pill btn-pill-no" data-dismiss-confirm>Not invested</button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

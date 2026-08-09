@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    container_name: vantage-stock-advisor
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - vantage-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  vantage-data:

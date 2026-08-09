@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log in — Vantage{% endblock %}
+{% block auth_content %}
+<div class="auth-grid">
+  <section class="auth-hero">
+    <div class="auth-hero-brand">
+      <img class="auth-hero-mark-img" src="{{ url_for('static', filename='logo.svg') }}" alt="Vantage logo">
+      <span class="auth-hero-name">Vantage</span>
+    </div>
+    <p class="auth-hero-tagline">Smarter starting points for every rupee you invest.</p>
+  </section>
+
+  <div class="auth-card-wrap">
+  <section class="auth-card">
+    <div class="auth-tabs">
+      <a class="auth-tab active" href="{{ url_for('login_page') }}">Log in</a>
+      <a class="auth-tab" href="{{ url_for('signup_page') }}">Create account</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('login_page') }}" novalidate>
+      <div class="field">
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" name="username" value="{{ prefill_username }}" autocomplete="username" autofocus>
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" name="password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Log in</button>
+    </form>
+
+    <p class="auth-switch">New here? <a href="{{ url_for('signup_page') }}">Create an account</a></p>
+  </section>
+  </div>
+</div>
+{% endblock %}

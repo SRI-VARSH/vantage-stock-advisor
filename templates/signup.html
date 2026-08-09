@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Create account — Vantage{% endblock %}
+{% block auth_content %}
+<div class="auth-grid">
+  <section class="auth-hero">
+    <div class="auth-hero-brand">
+      <img class="auth-hero-mark-img" src="{{ url_for('static', filename='logo.svg') }}" alt="Vantage logo">
+      <span class="auth-hero-name">Vantage</span>
+    </div>
+    <p class="auth-hero-tagline">Smarter starting points for every rupee you invest.</p>
+  </section>
+
+  <div class="auth-card-wrap">
+  <section class="auth-card auth-card-wide">
+    <div class="auth-tabs">
+      <a class="auth-tab" href="{{ url_for('login_page') }}">Log in</a>
+      <a class="auth-tab active" href="{{ url_for('signup_page') }}">Create account</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('signup_page') }}" id="signup-form" novalidate>
+      <div class="wizard-steps">
+        <span class="wstep active" data-step="1">1. Account</span>
+        <span class="wstep" data-step="2">2. Finances</span>
+        <span class="wstep" data-step="3">3. Risk &amp; goals</span>
+        <span class="wstep" data-step="4">4. Sectors</span>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="wizard-panel active" data-panel="1">
+        <div class="field-row">
+          <div class="field" id="field-name">
+            <label for="s-name">Full name</label>
+            <input type="text" id="s-name" name="name" value="{{ prefill.name or '' }}" required>
+            <span class="field-error" id="err-name">Enter your full name.</span>
+          </div>
+          <div class="field" id="field-dob">
+            <label for="s-dob">Date of birth</label>
+            <input type="date" id="s-dob" name="dob" value="{{ prefill.dob or '' }}" required>
+            <span class="field-error" id="err-dob">Enter your date of birth.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" id="field-username">
+            <label for="s-username">Username</label>
+            <input type="text" id="s-username" name="username" value="{{ prefill.username or '' }}" autocomplete="username" required minlength="3">
+            <span class="field-error" id="err-username">Username must be at least 3 characters.</span>
+          </div>
+          <div class="field" id="field-password">
+            <label for="s-password">Password</label>
+            <input type="password" id="s-password" name="password" autocomplete="new-password" required minlength="6">
+            <span class="field-error" id="err-password">Password must be at least 6 characters — that's too short.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wizard-panel" data-panel="2">
+        <div class="field-row">
+          <div class="field">
+            <label for="s-income">Monthly income (₹)</label>
+            <input type="number" id="s-income" name="monthly_income" min="0" value="{{ prefill.monthly_income or '' }}">
+          </div>
+          <div class="field">
+            <label for="s-expenses">Monthly expenses (₹)</label>
+            <input type="number" id="s-expenses" name="monthly_expenses" min="0" value="{{ prefill.monthly_expenses or '' }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="s-emergency">Emergency fund saved (₹)</label>
+            <input type="number" id="s-emergency" name="emergency_fund_amount" min="0" value="{{ prefill.emergency_fund_amount or '' }}">
+          </div>
+          <div class="field">
+            <label for="s-networth">Existing net worth (₹)</label>
+            <input type="number" id="s-networth" name="existing_net_worth" min="0" value="{{ prefill.existing_net_worth or '' }}">
+          </div>
+        </div>
+        <div class="field checkbox-field">
+          <label class="checkbox-label">
+            <input type="checkbox" id="s-debt-check" name="has_high_interest_debt">
+            I carry high-interest debt (credit card, personal loan, etc.)
+          </label>
+        </div>
+        <div class="field hidden" id="debt-amount-row">
+          <label for="s-debt-amount">Approx. debt amount (₹)</label>
+          <input type="number" id="s-debt-amount" name="debt_amount" min="0">
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wizard-panel" data-panel="3">
+        <label class="group-label">If your investment dropped 20% in a month, you would:</label>
+        <div class="risk-cards">
+          <label class="risk-card">
+            <input type="radio" name="risk_choice" value="1">
+            <span class="risk-title">Conservative</span>
+            <span class="risk-desc">Sell immediately to avoid further loss</span>
+          </label>
+          <label class="risk-card">
+            <input type="radio" name="risk_choice" value="2" checked>
+            <span class="risk-title">Moderate</span>
+            <span class="risk-desc">Feel uneasy but hold and wait it out</span>
+          </label>
+          <label class="risk-card">
+            <input type="radio" name="risk_choice" value="3">
+            <span class="risk-title">Aggressive</span>
+            <span class="risk-desc">See it as a buying opportunity</span>
+          </label>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="s-goal">Primary goal</label>
+            <input type="text" id="s-goal" name="primary_goal" placeholder="e.g. long-term wealth" value="{{ prefill.primary_goal or '' }}">
+          </div>
+          <div class="field">
+            <label for="s-horizon">Time horizon (years)</label>
+            <input type="number" id="s-horizon" name="time_horizon_years" min="1" value="{{ prefill.time_horizon_years or 5 }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="wizard-panel" data-panel="4">
+        <label class="group-label">Any sectors you'd like to exclude? (optional)</label>
+        <div class="chip-row">
+          {% for sector in sectors %}
+          <label class="chip-check">
+            <input type="checkbox" name="excluded_sectors" value="{{ sector }}">
+            <span>{{ sector }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-ghost" id="btn-wizard-back" disabled>Back</button>
+        <button type="button" class="btn btn-primary" id="btn-wizard-next">Next</button>
+        <button type="submit" class="btn btn-primary hidden" id="btn-wizard-submit">Create account</button>
+      </div>
+    </form>
+
+    <p class="auth-switch">Already have an account? <a href="{{ url_for('login_page') }}">Log in</a></p>
+  </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Profile — Vantage{% endblock %}
+{% block content %}
+
+<!-- ===================== PROFILE HERO ===================== -->
+<div class="profile-hero-card">
+  <div class="profile-cover"></div>
+  <div class="profile-hero-body">
+    <div class="profile-avatar-lg">{{ profile.name[0]|upper }}</div>
+    <div class="profile-hero-info">
+      <h2>{{ profile.name }}</h2>
+      <span class="profile-handle">@{{ profile.username }}</span>
+    </div>
+    <label for="edit-toggle" class="btn btn-primary profile-edit-btn">Edit profile</label>
+  </div>
+  <div class="profile-chip-row">
+    <span class="badge {{ profile.risk_tier }}">{{ profile.risk_tier }} risk</span>
+    <span class="profile-chip">{{ profile.time_horizon_years }} yr horizon</span>
+    <span class="profile-chip">{{ profile.emergency_fund_months }} mo emergency fund</span>
+    <span class="profile-chip">Member since {{ profile.created_at[:10] }}</span>
+  </div>
+</div>
+
+<input type="checkbox" id="edit-toggle" class="edit-toggle-checkbox">
+
+<!-- ===================== VIEW MODE ===================== -->
+<div class="profile-view">
+  <div class="info-section">
+    <h4>Personal</h4>
+    <div class="info-row"><span>Name</span><strong>{{ profile.name }}</strong></div>
+    <div class="info-row"><span>Primary goal</span><strong>{{ profile.primary_goal or "Not set" }}</strong></div>
+  </div>
+
+  <div class="info-section">
+    <h4>Financial snapshot</h4>
+    <div class="info-row"><span>Monthly income</span><strong>₹{{ "{:,.0f}".format(profile.monthly_income or 0) }}</strong></div>
+    <div class="info-row"><span>Monthly expenses</span><strong>₹{{ "{:,.0f}".format(profile.monthly_expenses or 0) }}</strong></div>
+    <div class="info-row"><span>Existing net worth</span><strong>₹{{ "{:,.0f}".format(profile.existing_net_worth or 0) }}</strong></div>
+    <div class="info-row"><span>Emergency fund saved</span><strong>₹{{ "{:,.0f}".format(profile.emergency_fund_amount or 0) }} ({{ profile.emergency_fund_months or 0 }} months of expenses)</strong></div>
+    <div class="info-row"><span>High-interest debt</span><strong>{{ "Yes" if profile.has_high_interest_debt else "No" }}</strong></div>
+  </div>
+
+  <div class="info-section">
+    <h4>Risk &amp; goals</h4>
+    <div class="info-row"><span>Risk tier</span><strong>{{ profile.risk_tier|capitalize }}</strong></div>
+    <div class="info-row"><span>Time horizon</span><strong>{{ profile.time_horizon_years }} years</strong></div>
+  </div>
+
+  <div class="info-section">
+    <h4>Excluded sectors</h4>
+    {% if profile.excluded_sectors %}
+    <div class="chip-row">
+      {% for s in profile.excluded_sectors %}<span class="chip">{{ s }}</span>{% endfor %}
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:0;">None — the full stock universe is considered.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===================== EDIT MODE ===================== -->
+<form method="POST" action="{{ url_for('dashboard_profile') }}" class="profile-edit">
+
+  <div class="profile-section">
+    <h4><span class="section-icon">&#9673;</span>Personal</h4>
+    <div class="field-row">
+      <div class="field">
+        <label for="p-name">Name</label>
+        <input type="text" id="p-name" name="name" value="{{ profile.name }}">
+      </div>
+      <div class="field">
+        <label for="p-goal">Primary goal</label>
+        <input type="text" id="p-goal" name="primary_goal" value="{{ profile.primary_goal or '' }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-section">
+    <h4><span class="section-icon">&#8353;</span>Financial snapshot</h4>
+    <div class="field-row">
+      <div class="field">
+        <label for="p-income">Monthly income (₹)</label>
+        <input type="number" id="p-income" name="monthly_income" value="{{ profile.monthly_income or 0 }}">
+      </div>
+      <div class="field">
+        <label for="p-expenses">Monthly expenses (₹)</label>
+        <input type="number" id="p-expenses" name="monthly_expenses" value="{{ profile.monthly_expenses or 0 }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="p-networth">Existing net worth (₹)</label>
+        <input type="number" id="p-networth" name="existing_net_worth" value="{{ profile.existing_net_worth or 0 }}">
+      </div>
+      <div class="field">
+        <label for="p-emergency">Emergency fund saved (₹)</label>
+        <input type="number" id="p-emergency" name="emergency_fund_amount" value="{{ profile.emergency_fund_amount or 0 }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field checkbox-field" style="align-self:flex-end;">
+        <label class="checkbox-label">
+          <input type="checkbox" name="has_high_interest_debt" {{ "checked" if profile.has_high_interest_debt }}>
+          I carry high-interest debt
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-section">
+    <h4><span class="section-icon">&#8599;</span>Risk &amp; goals</h4>
+    <div class="field-row">
+      <div class="field">
+        <label for="p-risk">Risk tier</label>
+        <select id="p-risk" name="risk_tier">
+          <option value="conservative" {{ "selected" if profile.risk_tier == "conservative" }}>Conservative</option>
+          <option value="moderate" {{ "selected" if profile.risk_tier == "moderate" }}>Moderate</option>
+          <option value="aggressive" {{ "selected" if profile.risk_tier == "aggressive" }}>Aggressive</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="p-horizon">Time horizon (years)</label>
+        <input type="number" id="p-horizon" name="time_horizon_years" value="{{ profile.time_horizon_years or 5 }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-section">
+    <h4><span class="section-icon">&#128278;</span>Excluded sectors</h4>
+    <div class="chip-row">
+      {% for sector in sectors %}
+      <label class="chip-check">
+        <input type="checkbox" name="excluded_sectors" value="{{ sector }}" {{ "checked" if sector in profile.excluded_sectors }}>
+        <span>{{ sector }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="profile-form-actions">
+    <label for="edit-toggle" class="btn btn-ghost">Cancel</label>
+    <button type="submit" class="btn btn-primary">Save changes</button>
+  </div>
+</form>
+
+{% endblock %}

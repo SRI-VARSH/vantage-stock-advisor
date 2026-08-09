@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Vantage — Personal Equity Advisor{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;650;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+{% if session_user %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="brand-mark-img" src="{{ url_for('static', filename='logo.svg') }}" alt="Vantage logo">
+      <span class="brand-name">Vantage</span>
+    </div>
+
+    <nav class="sidenav">
+      <a href="{{ url_for('dashboard_overview') }}" class="nav-link {{ 'active' if active=='overview' }}">
+        <span class="nav-icon">&#9673;</span> Overview
+      </a>
+      <a href="{{ url_for('dashboard_stocks') }}" class="nav-link {{ 'active' if active=='stocks' }}">
+        <span class="nav-icon">&#128202;</span> Stocks
+      </a>
+      <a href="{{ url_for('dashboard_recommend') }}" class="nav-link {{ 'active' if active=='recommend' }}">
+        <span class="nav-icon">&#8599;</span> Get Recommendation
+      </a>
+      <a href="{{ url_for('dashboard_tracked') }}" class="nav-link {{ 'active' if active=='tracked' }}">
+        <span class="nav-icon">&#128278;</span> Tracked
+      </a>
+      <a href="{{ url_for('dashboard_profile') }}" class="nav-link {{ 'active' if active=='profile' }}">
+        <span class="nav-icon">&#9675;</span> Profile
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <span class="user-avatar">{{ session_user.name[0]|upper }}</span>
+        <span class="user-name">{{ session_user.name }}</span>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm btn-block">Log out</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+      {% include "_flash.html" %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+{% else %}
+<main class="auth-shell">
+  {% include "_flash.html" %}
+  {% block auth_content %}{% endblock %}
+</main>
+{% endif %}
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

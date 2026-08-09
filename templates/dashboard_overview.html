@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Market Pulse — Vantage{% endblock %}
+{% block content %}
+
+{% if not market.has_data %}
+<div class="page-hero"><h2>Market Pulse</h2></div>
+<p class="empty-msg">Market data isn't cached yet — refresh this page in a moment.</p>
+
+{% else %}
+
+<!-- ===================== TICKER TAPE ===================== -->
+<div class="ticker-tape-wrap">
+  <div class="ticker-tape">
+    <div class="ticker-track" style="--ticker-duration: {{ market.ticker_duration }}s;">
+      {% for r in market.ticker + market.ticker %}
+      <span class="ticker-item {{ 'up' if r.change_pct >= 0 else 'down' }}">
+        <strong>{{ r.symbol }}</strong> {{ "$" if r.currency == "USD" else "₹" }}{{ "%.2f"|format(r.price) }}
+        <span class="ticker-change">{{ "+" if r.change_pct >= 0 else "" }}{{ r.change_pct }}%</span>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="market-head">
+  <div class="live-dot-label"><span class="pulse-dot"></span>Market pulse<span id="live-clock"></span></div>
+  <h2>A snapshot of today's screened universe</h2>
+</div>
+
+<!-- ---- reference indices (always shown, not part of the pickable universe) ---- -->
+<div class="indices-strip">
+  {% for idx in market.indices %}
+  <a class="index-card index-card-link" href="{{ url_for('dashboard_stock_detail', symbol=idx.symbol) }}">
+    <div class="index-name">{{ idx.name }}</div>
+    <div class="index-level">{{ "$" if idx.currency == "USD" else "" }}{{ "{:,.2f}".format(idx.level) }}</div>
+    <div class="index-change {{ 'stat-up' if idx.change_pct >= 0 else 'stat-down' }}">{{ "+" if idx.change_pct >= 0 else "" }}{{ idx.change_pct }}%</div>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Gainers<span class="tip" tabindex="0" data-tip="Number of stocks in the tracked universe that are up (green) today."></span></span>
+    <span class="stat-value stat-up">{{ market.gainers_count }}</span>
+    <span class="stat-sublabel">stocks trading up today</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Losers<span class="tip" tabindex="0" data-tip="Number of stocks in the tracked universe that are down (red) today."></span></span>
+    <span class="stat-value stat-down">{{ market.losers_count }}</span>
+    <span class="stat-sublabel">stocks trading down today</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Leading sector today<span class="tip" tabindex="0" data-tip="The sector with the best average price movement across its stocks today."></span></span>
+    <span class="stat-value" style="font-size: 18px;">{{ market.best_sector }}</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Universe tracked<span class="tip" tabindex="0" data-tip="Total number of stocks Vantage screens against, across all markets covered."></span></span>
+    <span class="stat-value">{{ market.ticker|length }} stocks</span>
+  </div>
+</div>
+
+<div class="results-grid">
+  <!-- ---- movers ---- -->
+  <div class="picks-card">
+    <h3>Top movers today<span class="tip" tabindex="0" data-tip="How much each stock's price changed today. Green + = up, red − = down. Click any name to open its chart."></span></h3>
+    <div class="movers-cols">
+      <div class="movers-col">
+        <span class="movers-col-label movers-up">Gainers</span>
+        {% for g in market.gainers %}
+        <a class="mover-row mover-row-link" href="{{ url_for('dashboard_stock_detail', symbol=g.full_symbol) }}">
+          <span class="mover-name">{{ g.symbol }}</span>
+          <span class="mover-change up">+{{ g.change_pct }}%</span>
+        </a>
+        {% else %}
+        <p class="mover-empty">No gainers right now.</p>
+        {% endfor %}
+      </div>
+      <div class="movers-col">
+        <span class="movers-col-label movers-down">Losers</span>
+        {% for l in market.losers %}
+        <a class="mover-row mover-row-link" href="{{ url_for('dashboard_stock_detail', symbol=l.full_symbol) }}">
+          <span class="mover-name">{{ l.symbol }}</span>
+          <span class="mover-change down">{{ l.change_pct }}%</span>
+        </a>
+        {% else %}
+        <p class="mover-empty">No losers right now.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- sector performance ---- -->
+  <div class="allocation-card">
+    <h3>Sector performance<span class="tip" tabindex="0" data-tip="The average price change today across all stocks in each sector — a rough read on which industries are having a stronger day."></span></h3>
+    <div class="sector-bars">
+      {% for s in market.sector_perf %}
+      <div class="sector-row">
+        <span class="sector-row-label"><i class="swatch" style="background: {{ s.color }};"></i>{{ s.sector }}</span>
+        <span class="sector-row-pct {{ 'stat-up' if s.avg_change >= 0 else 'stat-down' }}">{{ "+" if s.avg_change >= 0 else "" }}{{ s.avg_change }}%</span>
+      </div>
+      <div class="sector-bar-track">
+        <div class="sector-bar-fill" style="width: {{ (s.avg_change|abs) * 12 }}%; background: {{ s.color }};"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CTA ===================== -->
+<div class="cta-banner">
+  <div>
+    <h3>See what this would mean for your money</h3>
+    <p>Run an amount through the same screening &amp; allocation logic behind this snapshot.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('dashboard_recommend') }}">Get a recommendation &rarr;</a>
+</div>
+
+<p class="live-caption">
+  {% if market.is_mock %}
+    Running in offline demo mode — prices and daily % change shown here are simulated, not a live feed.
+  {% else %}
+    Prices and daily % change are pulled from real market data and cached — refreshed automatically roughly every
+    {{ 15 }} minutes while a market is open, and again shortly after close to capture the final settle price.
+  {% endif %}
+  Data as of: {{ market.data_as_of }}
+</p>
+
+{% endif %}
+{% endblock %}

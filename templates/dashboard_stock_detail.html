@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ stock.company_name }} — Vantage{% endblock %}
+{% block content %}
+
+<div class="page-hero">
+  <h2>{{ stock.company_name }}</h2>
+  <a href="{{ back_url }}" class="btn btn-ghost btn-sm">&larr; Back to Stocks</a>
+</div>
+
+<div class="stock-detail-head">
+  <div>
+    <div class="stock-symbol-cell" style="font-size:13px;">{{ stock.symbol }} · <span style="text-transform:capitalize;">{{ stock.sector }}</span> · {{ stock.region or "—" }}</div>
+    <div class="stock-detail-price">{{ "$" if stock.currency == "USD" else "₹" }}{{ "%.2f"|format(stock.price or 0) }}</div>
+    <div class="stock-detail-change {{ 'stat-up' if change_pct >= 0 else 'stat-down' }}">{{ "+" if change_pct >= 0 else "" }}{{ change_pct }}% today</div>
+  </div>
+  {% if stock.asset_type != "index" %}
+  <span class="sector-tag" style="background: var(--accent-soft); color: var(--accent); align-self:flex-start;">{{ stock.market_cap_tier|capitalize }} cap</span>
+  {% endif %}
+</div>
+
+<div class="chart-card">
+  <div class="chart-range-row" id="range-row" data-symbol="{{ stock.symbol }}">
+    <button type="button" class="range-btn" data-range="1d">1D</button>
+    <button type="button" class="range-btn" data-range="1w">1W</button>
+    <button type="button" class="range-btn" data-range="2w">2W</button>
+    <button type="button" class="range-btn" data-range="3w">3W</button>
+    <button type="button" class="range-btn active" data-range="1m">1M</button>
+    <button type="button" class="range-btn" data-range="2m">2M</button>
+    <button type="button" class="range-btn" data-range="3m">3M</button>
+    <button type="button" class="range-btn" data-range="6m">6M</button>
+    <button type="button" class="range-btn" data-range="1y">1Y</button>
+  </div>
+  <div class="price-chart-wrap" id="price-chart-wrap">
+    <div id="chart-svg-container"><div class="chart-loading">Loading price history…</div></div>
+    <div class="chart-tooltip" id="chart-tooltip"></div>
+  </div>
+  <p class="disclaimer-inline" style="margin-top:12px;">Illustrative price history for this project — not a live market data feed. Hover the chart to see the value at any point.</p>
+</div>
+
+{% if stock.asset_type != "index" %}
+<div class="chart-card">
+  <h3 style="margin-bottom:14px;">Fundamentals</h3>
+  <div class="fundamentals-grid">
+    <div class="fundamental-item"><div class="fundamental-label">ROE</div><div class="fundamental-value">{{ stock.roe or "—" }}%</div></div>
+    <div class="fundamental-item"><div class="fundamental-label">Revenue growth</div><div class="fundamental-value">{{ stock.revenue_growth or "—" }}%</div></div>
+    <div class="fundamental-item"><div class="fundamental-label">Debt / Equity</div><div class="fundamental-value">{{ stock.debt_to_equity or "—" }}</div></div>
+    <div class="fundamental-item"><div class="fundamental-label">P/E ratio</div><div class="fundamental-value">{{ stock.pe_ratio or "—" }}</div></div>
+    <div class="fundamental-item">
+      <div class="fundamental-label">Market cap</div>
+      <div class="fundamental-value">
+        {{ "$" if stock.currency == "USD" else "₹" }}{{ "{:,.2f}".format(stock.market_cap_native or 0) }}{{ (" " + stock.market_cap_unit) if stock.market_cap_unit else "" }}
+      </div>
+    </div>
+    <div class="fundamental-item"><div class="fundamental-label">Sector</div><div class="fundamental-value" style="text-transform:capitalize;">{{ stock.sector }}</div></div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
