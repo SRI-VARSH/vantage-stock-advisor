@@ -162,53 +162,82 @@ def get_tracked_recommendations(user_id: int) -> dict:
 
 
 def refresh_data_if_needed() -> str:
-    """Returns the data_as_of timestamp string, refreshing the cache if stale.
+    """Refresh cached market data when stale or when the universe is incomplete."""
 
-    Staleness is now market-hours-aware instead of one flat 48-hour window:
-      - While the (NSE) market is open: refresh at most every
-        INTRADAY_REFRESH_MINUTES, so prices don't drift far from reality
-        during the trading session.
-      - Just after close (within POST_CLOSE_REFRESH_MINUTES of 3:30pm IST):
-        force one more refresh even if the last one was recent, to capture
-        the actual final settle price for the day — this is specifically
-        what fixes "I checked right after close and the price was stale":
-        the old flat 48-hour window had no concept of "the session that
-        matters just ended," so it could easily still be serving a
-        mid-session price from hours earlier as if it were final.
-      - Outside market hours otherwise (evenings/weekends): the last
-        session's data doesn't change, so the normal DATA_STALENESS_HOURS
-        window applies rather than refreshing needlessly.
-
-    Also refreshes the reference indices (config.REFERENCE_INDICES) on the
-    exact same cadence, from the exact same "is this actually stale right
-    now" check — they're cached in the same table as stocks and share this
-    one staleness decision instead of drifting out of sync with it.
-    """
     cached = database.get_all_cached_stocks()
+    expected_stock_count = len(data_layer.get_universe())
+
     now_ist = datetime.now(IST)
-    needs_refresh = True
     data_as_of = "never refreshed"
+
+    # IMPORTANT:
+    # If Render only managed to cache 12/70 stocks, force another attempt.
+    cache_incomplete = len(cached) < expected_stock_count
+
+    needs_refresh = cache_incomplete
 
     if cached:
         latest = max(s["last_updated"] for s in cached)
         data_as_of = latest
+
         age = datetime.utcnow() - datetime.fromisoformat(latest)
 
         if _market_is_open(now_ist):
-            needs_refresh = age > timedelta(minutes=INTRADAY_REFRESH_MINUTES)
+            needs_refresh = (
+                cache_incomplete
+                or age > timedelta(minutes=INTRADAY_REFRESH_MINUTES)
+            )
+
         elif 0 <= _minutes_since_close(now_ist) <= POST_CLOSE_REFRESH_MINUTES:
-            # Just closed: make sure at least one refresh has happened since
-            # today's close, regardless of the normal staleness window.
-            last_updated_ist = datetime.fromisoformat(latest).replace(tzinfo=timezone.utc).astimezone(IST)
-            close_today = now_ist.replace(hour=MARKET_CLOSE_IST.hour, minute=MARKET_CLOSE_IST.minute, second=0, microsecond=0)
-            needs_refresh = last_updated_ist < close_today
+            last_updated_ist = (
+                datetime.fromisoformat(latest)
+                .replace(tzinfo=timezone.utc)
+                .astimezone(IST)
+            )
+
+            close_today = now_ist.replace(
+                hour=MARKET_CLOSE_IST.hour,
+                minute=MARKET_CLOSE_IST.minute,
+                second=0,
+                microsecond=0,
+            )
+
+            needs_refresh = (
+                cache_incomplete
+                or last_updated_ist < close_today
+            )
+
         else:
-            needs_refresh = age > timedelta(hours=DATA_STALENESS_HOURS)
+            needs_refresh = (
+                cache_incomplete
+                or age > timedelta(hours=DATA_STALENESS_HOURS)
+            )
 
     if needs_refresh:
-        data_layer.refresh_universe(database.upsert_stock_cache)
-        data_layer.refresh_indices(database.upsert_stock_cache, REFERENCE_INDICES)
-        data_as_of = datetime.utcnow().isoformat()
+        results = data_layer.refresh_universe(
+            database.upsert_stock_cache
+        )
+
+        # Useful for Render logs
+        successful = sum(1 for _, status in results if status == "ok")
+        failed = len(results) - successful
+
+        print(
+            f"Universe refresh: {successful}/{len(results)} stocks succeeded; "
+            f"{failed} failed."
+        )
+
+        data_layer.refresh_indices(
+            database.upsert_stock_cache,
+            REFERENCE_INDICES,
+        )
+
+        cached_after = database.get_all_cached_stocks()
+
+        if cached_after:
+            data_as_of = max(
+                s["last_updated"] for s in cached_after
+            )
 
     return data_as_of
 

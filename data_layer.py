@@ -2,7 +2,7 @@
 
 import random
 from datetime import datetime, timedelta
-
+import time
 USE_MOCK_DATA = False  # flip to True for offline demo with built-in sample data
 
 # Approximate USD->INR rate used only to normalize market_cap_cr onto a single
@@ -19,7 +19,7 @@ MOCK_UNIVERSE = [
     "ADANIPOWER.NS", "ZOMATO.NS", "IRCTC.NS", "TATASTEEL.NS", "COALINDIA.NS",
     "ICICIBANK.NS", "AXISBANK.NS", "KOTAKBANK.NS", "SBIN.NS", "WIPRO.NS",
     "HCLTECH.NS", "LT.NS", "ASIANPAINT.NS", "NESTLEIND.NS", "ULTRACEMCO.NS",
-    "POWERGRID.NS", "NTPC.NS", "ONGC.NS", "BPCL.NS", "TATAMOTORS.NS",
+    "POWERGRID.NS", "NTPC.NS", "ONGC.NS", "BPCL.NS", "TMPV.NS",
     "M&M.NS", "DIVISLAB.NS", "CIPLA.NS", "DRREDDY.NS", "BRITANNIA.NS",
     "DABUR.NS", "PIDILITIND.NS", "HAVELLS.NS", "SIEMENS.NS", "GRASIM.NS",
     "JSWSTEEL.NS", "HINDALCO.NS", "APOLLOHOSP.NS", "EICHERMOT.NS", "BAJAJFINSV.NS",
@@ -296,18 +296,36 @@ def get_universe() -> list:
 
 
 def refresh_universe(db_upsert_fn):
-    """Batch-refresh job (Step 4 caching design): pulls fundamentals for every
-    stock in the universe ONCE, and stores it via the provided db function.
-    Run this periodically (e.g. daily cron job) — never call get_fundamentals()
-    live per user request."""
     results = []
+
     for symbol in get_universe():
-        try:
-            data = get_fundamentals(symbol)
-            db_upsert_fn(data)
-            results.append((symbol, "ok"))
-        except Exception as e:
-            results.append((symbol, f"failed: {e}"))
+        last_error = None
+
+        for attempt in range(3):
+            try:
+                data = get_fundamentals(symbol)
+
+                # Don't cache completely empty/invalid quotes
+                if not data.get("price"):
+                    raise ValueError("No valid price returned")
+
+                db_upsert_fn(data)
+                results.append((symbol, "ok"))
+                break
+
+            except Exception as e:
+                last_error = e
+                print(
+                    f"[yfinance] {symbol} failed "
+                    f"(attempt {attempt + 1}/3): {e}"
+                )
+
+                if attempt < 2:
+                    time.sleep(2 * (attempt + 1))
+
+        else:
+            results.append((symbol, f"failed: {last_error}"))
+
     return results
 
 
