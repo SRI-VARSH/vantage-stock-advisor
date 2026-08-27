@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-MODEL = "gemini-flash-latest"
+MODEL = "gemini-3.6-flash"
 
 
 def _client():
